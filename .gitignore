@@ -48,3 +48,4 @@ _ReSharper*/
 .project
 project.lock.json
 Sharpmake.VC.db
+*.nuget.cache
