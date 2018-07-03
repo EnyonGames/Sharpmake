@@ -1861,8 +1861,53 @@ namespace Sharpmake
             }
         }
 
+
         // http://www.mono-project.com/docs/faq/technical/#how-can-i-detect-if-am-running-in-mono
         private static readonly bool s_monoRuntimeExists = (Type.GetType("Mono.Runtime") != null);
         public static bool IsRunningInMono() => s_monoRuntimeExists;
+
+        private static bool s_checkedGitRepo = false;
+        private static List<string> s_filesModifiedByGit = null;
+        public static bool IsFileModified(FileInfo fileInfo, Project project)
+        {
+            // If using P4 file would be read only
+            if(fileInfo.IsReadOnly)
+            {
+                return true;
+            }
+
+            // Check if using git
+            if(s_filesModifiedByGit != null)
+            {
+                return s_filesModifiedByGit.Contains(fileInfo.FullName);
+            }
+            else
+            {
+                if(s_checkedGitRepo)
+                {
+                    // File is not modified
+                    return false;
+                }
+                else
+                {
+                    // Check if using git repo
+                    s_checkedGitRepo = true;
+
+                    StringWriter writer = new StringWriter();
+                    Process process = new Process();
+                    process.StartInfo.FileName = "git";
+                    process.StartInfo.Arguments = "status";
+                    process.StartInfo.WorkingDirectory = project.SourceRootPath;
+                    process.StartInfo.UseShellExecute = false;
+                    process.StartInfo.RedirectStandardOutput = true;
+                    process.OutputDataReceived += (sender, args) => writer.Write(args.Data);
+                    process.Start();
+                    process.BeginOutputReadLine();
+                    process.WaitForExit();
+
+                    return false;
+                }
+            }
+        }
     }
 }

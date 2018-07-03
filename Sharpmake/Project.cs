@@ -1175,7 +1175,7 @@ namespace Sharpmake
 
                 currentBlobSize += currentFileSize;
 
-                bool isWorkBlobCandidate = (BlobWorkEnabled && !sourceFileInfo.IsReadOnly);
+                bool isWorkBlobCandidate = (BlobWorkEnabled && !Util.IsFileModified(sourceFileInfo, this));
                 currentBlobSourceFiles.Add(new SourceFile(sourcefile, isWorkBlobCandidate));
                 if (isWorkBlobCandidate)
                 {
