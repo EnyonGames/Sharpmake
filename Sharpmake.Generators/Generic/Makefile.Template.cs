@@ -98,11 +98,14 @@ endif
   CPPFLAGS  += -MMD -MP $(DEFINES) $(INCLUDES)
   CFLAGS    += $(CPPFLAGS) [options.CFLAGS]
   CXXFLAGS  += $(CFLAGS) [options.CXXFLAGS]
+  CXXFLAGS_WITH_PCH += $(CXXFLAGS) [options.PchInclude]
   LDFLAGS   += [options.LibraryPaths] [options.AdditionalLinkerOptions]
   LIBS      += [options.LinkDependenciesLibraryFiles] [options.LibraryFiles]
   RESFLAGS  += $(DEFINES) $(INCLUDES)
   LDDEPS    += [options.DependenciesLibraryFiles]
   LINKCMD    = [options.LinkCommand]
+  PCH = [options.PchHeader]
+  GCH = [options.PchOutput]
   define PREBUILDCMDS
   endef
   define PRELINKCMDS
@@ -140,7 +143,7 @@ endif
 all: $(TARGETDIR) $(OBJDIR) prebuild prelink $(TARGET)
 	@:
 
-$(TARGET): $(GCH) $(OBJECTS) $(LDDEPS) $(RESOURCES) | $(TARGETDIR)
+$(TARGET): $(OBJECTS) $(LDDEPS) $(RESOURCES) | $(TARGETDIR)
 	@echo Linking [projectName]
 	$(SILENT) $(LINKCMD)
 	$(POSTBUILDCMDS)
@@ -178,19 +181,18 @@ prelink:
 	$(PRELINKCMDS)
 
 ifneq (,$(PCH))
-$(GCH): $(PCH)
+$(GCH): $(PCH) | $(OBJDIR)
 	@echo $(notdir $<)
-	-$(SILENT) cp $< $(OBJDIR)
-	$(SILENT) $(CXX) $(CXXFLAGS) -o ""$@"" -c ""$<""
+	$(SILENT) $(CXX) -x c++-header $(CXXFLAGS) -o ""$@"" -c ""$<""
 	$(SILENT) $(POSTFILECMDS)
 endif
 
 ";
 
                 public static string ObjectRule =
-@"$(OBJDIR)/[objectFile]: [sourceFile] | $(OBJDIR)
+@"$(OBJDIR)/[objectFile]: [sourceFile] | $(OBJDIR) $(GCH)
 	@echo $(notdir $<)
-	$(SILENT) $(CXX) $(CXXFLAGS) -o ""$@"" -c ""$<""
+	$(SILENT) $(CXX) $(CXXFLAGS_WITH_PCH) -o ""$@"" -c ""$<""
 	$(SILENT) $(POSTFILECMDS)
 
 ";

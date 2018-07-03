@@ -19,8 +19,6 @@ using System.Text;
 namespace Sharpmake.Generators.Generic
 {
     // TODO: Pre and post build commands.
-    // TODO: Precompiled header support.
-    // TODO: Dynamic library support.
 
     /// <summary>
     ///
@@ -254,7 +252,7 @@ namespace Sharpmake.Generators.Generic
             Dictionary<Project.Configuration, Options.ExplicitOptions> options = new Dictionary<Project.Configuration, Options.ExplicitOptions>();
             foreach (Project.Configuration conf in configurations)
             {
-                Options.ExplicitOptions option = GenerateOptions(conf, projectFileInfo);
+                Options.ExplicitOptions option = GenerateOptions(conf, projectFileInfo, project);
                 options.Add(conf, option);
             }
 
@@ -365,7 +363,7 @@ namespace Sharpmake.Generators.Generic
             }
         }
 
-        private Options.ExplicitOptions GenerateOptions(Project.Configuration conf, FileInfo projectFileInfo)
+        private Options.ExplicitOptions GenerateOptions(Project.Configuration conf, FileInfo projectFileInfo, Project project)
         {
             Options.ExplicitOptions options = new Options.ExplicitOptions();
 
@@ -468,6 +466,41 @@ namespace Sharpmake.Generators.Generic
                     );
 
                 options["CXXFLAGS"] = cxxflags.ToString();
+            }
+
+            #endregion
+
+            #region Precompiled header
+
+            options["PchInclude"] = "";
+            options["PchOutput"] = "";
+            options["PchHeader"] = "";
+
+            if (!string.IsNullOrEmpty(conf.PrecompHeader))
+            {
+                // Use precompiled header
+
+                string outputDir = conf.PrecompHeaderOutputFolder;
+                if(string.IsNullOrEmpty(outputDir))
+                {
+                    outputDir = conf.IntermediatePath;
+                }
+
+                string PchOutputFile = Path.GetFullPath(Path.Combine(outputDir, conf.PrecompHeader + ".pch"));
+
+                if (!string.IsNullOrEmpty(conf.PrecompSource))
+                {
+                    // Compile first
+
+                    string workspacePath = Directory.GetParent(conf.ProjectFullFileNameWithExtension).FullName;
+                    string precompiledHeaderFullPath = Path.Combine(project.SourceRootPath, conf.PrecompHeader);
+                    options["PchHeader"] = Util.PathGetRelative(workspacePath, precompiledHeaderFullPath);
+
+                    //options["PchHeader"] = conf.PrecompHeader;
+                    options["PchOutput"] = PchOutputFile;
+                }
+
+                options["PchInclude"] = "-include-pch " + PchOutputFile;
             }
 
             #endregion
