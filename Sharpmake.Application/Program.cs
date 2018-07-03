@@ -52,7 +52,7 @@ namespace Sharpmake.Application
 
         public static void LogWrite(string msg, params object[] args)
         {
-            string message = string.Format(msg, args);
+            string message = args.Length > 0 ? string.Format(msg, args) : msg;
             string prefix = String.Empty;
 
             if (DebugEnable)
@@ -109,9 +109,10 @@ namespace Sharpmake.Application
         public static void ErrorWrite(string msg, params object[] args)
         {
             Interlocked.Increment(ref s_errorCount);
-            Console.Write(msg, args);
+            string message = args.Length > 0 ? string.Format(msg, args) : msg;
+            Console.Write(message);
             if (Debugger.IsAttached)
-                Debug.Write(args.Length > 0 ? string.Format(msg, args) : msg);
+                Debug.Write(message);
         }
 
         public static void ErrorWriteLine(string msg, params object[] args)
