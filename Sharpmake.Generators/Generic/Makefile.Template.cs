@@ -98,8 +98,8 @@ endif
   CPPFLAGS  += -MMD -MP $(DEFINES) $(INCLUDES)
   CFLAGS    += $(CPPFLAGS) [options.CFLAGS]
   CXXFLAGS  += $(CFLAGS) [options.CXXFLAGS]
-  LDFLAGS   += [options.LibraryPaths]
-  LIBS      += [options.DependenciesLibraryFiles] [options.LibraryFiles]
+  LDFLAGS   += [options.LibraryPaths] [options.AdditionalLinkerOptions]
+  LIBS      += [options.LinkDependenciesLibraryFiles] [options.LibraryFiles]
   RESFLAGS  += $(DEFINES) $(INCLUDES)
   LDDEPS    += [options.DependenciesLibraryFiles]
   LINKCMD    = [options.LinkCommand]

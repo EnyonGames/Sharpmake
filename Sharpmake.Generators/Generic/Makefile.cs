@@ -480,7 +480,18 @@ namespace Sharpmake.Generators.Generic
             // DependenciesLibraryFiles
             OrderableStrings dependenciesLibraryFiles = GetDependenciesOutputFilesProjectRelative(conf, projectFileInfo);
             PathMakeUnix(dependenciesLibraryFiles);
+
             options["DependenciesLibraryFiles"] = dependenciesLibraryFiles.JoinStrings(" ");
+
+            for (int i = 0; i < dependenciesLibraryFiles.Count; ++i)
+            {
+                if(dependenciesLibraryFiles[i].Contains(".so"))
+                {
+                    dependenciesLibraryFiles[i] = "-l:" + Path.GetFileName(dependenciesLibraryFiles[i]);
+                }
+            }
+
+            options["LinkDependenciesLibraryFiles"] = dependenciesLibraryFiles.JoinStrings(" ");
 
             // LibraryFiles
             OrderableStrings libraryFiles = new OrderableStrings();
@@ -494,6 +505,9 @@ namespace Sharpmake.Generators.Generic
             PathMakeUnix(libraryPaths);
             libraryPaths.InsertPrefix("-L");
             options["LibraryPaths"] = libraryPaths.JoinStrings(" ");
+
+            // AdditionalOptions
+            options["AdditionalLinkerOptions"] = conf.AdditionalLinkerOptions.JoinStrings(" ");
 
             // LinkCommand
             if (conf.Output == Project.Configuration.OutputType.Lib)
