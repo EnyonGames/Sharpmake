@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
@@ -67,6 +67,8 @@
     <Compile Include="GeneratorManager.cs" />
     <Compile Include="Generic\MakeApplication.Template.cs" />
     <Compile Include="Generic\MakeApplication.cs" />
+    <Compile Include="Generic\Ninja.cs" />
+    <Compile Include="Generic\Ninja.Template.cs" />
     <Compile Include="Generic\MakeProject.Template.cs" />
     <Compile Include="Generic\MakeProject.cs" />
     <Compile Include="Generic\Makefile.Template.cs" />

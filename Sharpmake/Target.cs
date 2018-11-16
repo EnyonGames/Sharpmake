@@ -70,6 +70,11 @@ namespace Sharpmake
         make = 1 << 7,
 
         /// <summary>
+        /// Ninja files.
+        /// </summary>
+        ninja = 1 << 8,
+
+        /// <summary>
         /// All supported Visual Studio versions.
         /// </summary>
         [CompositeFragment]

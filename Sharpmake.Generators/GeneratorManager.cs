@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 using System.Collections.Generic;
-using System.Linq;
 using Sharpmake.Generators.Apple;
 using Sharpmake.Generators.FastBuild;
 using Sharpmake.Generators.Generic;
@@ -57,6 +56,9 @@ namespace Sharpmake.Generators
         
         private Makefile _makefileGenerator = null;
         public Makefile MakefileGenerator => _makefileGenerator ?? (_makefileGenerator = new Makefile());
+
+        private Ninja _ninjaGenerator = null;
+        public Ninja NinjaGenerator => _ninjaGenerator ?? (_ninjaGenerator = new Ninja());
         #endregion
 
         // singleton
@@ -114,6 +116,11 @@ namespace Sharpmake.Generators
                             XCodeProjectGenerator.Generate(builder, project, configurations, projectFile, generatedFiles, skipFiles);
                             break;
                         }
+                    case DevEnv.ninja:
+                        {
+                            NinjaGenerator.Generate(builder, project, configurations, projectFile, generatedFiles, skipFiles);
+                            break;
+                        }
                     default:
                         {
                             throw new Error("Generate called with unknown DevEnv: " + configurations[0].Target.GetFragment<DevEnv>());
@@ -157,6 +164,11 @@ namespace Sharpmake.Generators
                             }
 
                             SlnGenerator.Generate(builder, solution, configurations, solutionFile, generatedFiles, skipFiles);
+                            break;
+                        }
+                    case DevEnv.ninja:
+                        {
+                            NinjaGenerator.Generate(builder, solution, configurations, solutionFile, generatedFiles, skipFiles);
                             break;
                         }
                     default:
