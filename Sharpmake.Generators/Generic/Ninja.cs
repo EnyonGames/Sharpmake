@@ -73,116 +73,127 @@ namespace Sharpmake.Generators.Generic
             string solutionPath = fileInfo.Directory.FullName;
             string solutionFileName = fileInfo.Name;
 
-            bool updated;
-            string solutionFileResult = GenerateSolution(builder, solution, configurations, solutionPath, solutionFileName, out updated);
-            if (updated)
-                generatedFiles.Add(solutionFileResult);
-            else
-                skipFiles.Add(solutionFileResult);
+            GenerateSolution(builder, solution, configurations, solutionPath, solutionFileName, generatedFiles, skipFiles);
         }
 
-        private string GenerateSolution(
+        private void GenerateSolution(
             Builder builder,
             Solution solution,
             List<Solution.Configuration> configurations,
             string solutionPath,
             string solutionFile,
-            out bool updated)
+            List<string> generatedFiles,
+            List<string> skipFiles)
         {
-            FileInfo solutionFileInfo = new FileInfo(Util.GetCapitalizedPath(solutionPath + Path.DirectorySeparatorChar + solutionFile + BuildFileExtension));
             bool projectsWereFiltered = false;
             List<Solution.ResolvedProject> solutionProjects = solution.GetResolvedProjects(configurations, out projectsWereFiltered).ToList();
             solutionProjects.Sort((a, b) => string.Compare(a.ProjectName, b.ProjectName)); // Ensure all projects are always in the same order to avoid random shuffles
 
             if (solutionProjects.Count == 0)
             {
-                // Erase solution file if solution has no projects.
-                updated = solutionFileInfo.Exists;
-                if (updated)
-                    Util.TryDeleteFile(solutionFileInfo.FullName);
-                return solutionFileInfo.FullName;
-            }
-
-            // Write it all in memory to not overwrite if no changes detected.
-            var fileGenerator = new FileGenerator();
-            using (fileGenerator.Declare("defaultConfig", configurations[0].Name.ToLower()))
-            {
-                //fileGenerator.Write(Template.Solution.Header);
-            }
-
-            //fileGenerator.WriteVerbatim(Template.Solution.ProjectsVariableBegin);
-            foreach (Solution.ResolvedProject resolvedProject in solutionProjects)
-            {
-                using (fileGenerator.Declare("projectName", resolvedProject.ProjectName))
+                // Erase solution files if solution has no projects.
+                foreach (Solution.Configuration conf in configurations)
                 {
-                    //fileGenerator.Write(Template.Solution.ProjectsVariableElement);
-                }
-            }
-            //fileGenerator.WriteVerbatim(Template.Solution.ProjectsVariableEnd);
-
-            //fileGenerator.WriteVerbatim(Template.Solution.PhonyTargets);
-
-            //fileGenerator.WriteVerbatim(Template.Solution.AllRule);
-
-            // Projects rules
-            foreach (Solution.ResolvedProject resolvedProject in solutionProjects)
-            {
-                FileInfo projectFileInfo = new FileInfo(resolvedProject.ProjectFile);
-                using (fileGenerator.Declare("projectName", resolvedProject.ProjectName))
-                using (fileGenerator.Declare("projectFileDirectory", PathMakeUnix(Util.PathGetRelative(solutionFileInfo.DirectoryName, projectFileInfo.DirectoryName))))
-                using (fileGenerator.Declare("projectFileName", projectFileInfo.Name))
-                {
-                    //fileGenerator.Write(Template.Solution.ProjectRuleBegin);
-                    foreach (Solution.ResolvedProject resolvedDependency in resolvedProject.Dependencies)
+                    FileInfo solutionFileInfo = new FileInfo(Util.GetCapitalizedPath(solutionPath + Path.DirectorySeparatorChar + solutionFile + conf.Name.ToLower() + BuildFileExtension));
+                    if (solutionFileInfo.Exists)
                     {
-                        using (fileGenerator.Declare("dependencyName", resolvedDependency.ProjectName))
-                        {
-                            //fileGenerator.Write(Template.Solution.ProjectRuleDependency);
-                        }
+                        Util.TryDeleteFile(solutionFileInfo.FullName);
+                        generatedFiles.Add(solutionFileInfo.FullName);
                     }
-                    //fileGenerator.Write(Template.Solution.ProjectRuleEnd);
+                    else
+                    {
+                        skipFiles.Add(solutionFileInfo.FullName);
+                    }
                 }
             }
 
-            // Clean rule
-            //fileGenerator.WriteVerbatim(Template.Solution.CleanRuleBegin);
-            foreach (Solution.ResolvedProject resolvedProject in solutionProjects)
+            foreach (Solution.Configuration conf in configurations)
             {
-                FileInfo projectFileInfo = new FileInfo(resolvedProject.ProjectFile);
-                using (fileGenerator.Declare("projectFileDirectory", PathMakeUnix(Util.PathGetRelative(solutionFileInfo.DirectoryName, projectFileInfo.DirectoryName))))
-                using (fileGenerator.Declare("projectFileName", projectFileInfo.Name))
+                FileInfo solutionFileInfo = new FileInfo(Util.GetCapitalizedPath(solutionPath + Path.DirectorySeparatorChar + solutionFile + "_" + conf.Name.ToLower() + BuildFileExtension));
+
+                // Write it all in memory to not overwrite if no changes detected.
+                var fileGenerator = new FileGenerator();
+
+                fileGenerator.Write(Template.Solution.Header);
+
+                foreach (Solution.ResolvedProject resolvedProject in solutionProjects)
                 {
-                    //fileGenerator.Write(Template.Solution.CleanRuleProject);
+                    FileInfo projectFileInfo = new FileInfo(resolvedProject.ProjectFile);
+                    using (fileGenerator.Declare("projectFileName", projectFileInfo.Name))
+                    {
+                        fileGenerator.Write(Template.Solution.ProjectsVariableElement);
+                    }
                 }
-            }
-            //fileGenerator.WriteVerbatim(Template.Solution.CleanRuleEnd);
 
-            // Help rule
-            //fileGenerator.WriteVerbatim(Template.Solution.HelpRuleBegin);
-            foreach (Project.Configuration conf in solutionProjects.First().Configurations)
-            {
-                // Optimizations enumeration rely on the fact that all projects share the same targets as the solution.
-                using (fileGenerator.Declare("optimization", conf.Target.GetOptimization().ToString().ToLower()))
+                //fileGenerator.WriteVerbatim(Template.Solution.PhonyTargets);
+
+                //fileGenerator.WriteVerbatim(Template.Solution.AllRule);
+
+                // Projects rules
+                foreach (Solution.ResolvedProject resolvedProject in solutionProjects)
                 {
-                    //fileGenerator.Write(Template.Solution.HelpRuleConfiguration);
+                    FileInfo projectFileInfo = new FileInfo(resolvedProject.ProjectFile);
+                    using (fileGenerator.Declare("projectName", resolvedProject.ProjectName))
+                    using (fileGenerator.Declare("projectFileDirectory", PathMakeUnix(Util.PathGetRelative(solutionFileInfo.DirectoryName, projectFileInfo.DirectoryName))))
+                    using (fileGenerator.Declare("projectFileName", projectFileInfo.Name))
+                    {
+                        //fileGenerator.Write(Template.Solution.ProjectRuleBegin);
+                        foreach (Solution.ResolvedProject resolvedDependency in resolvedProject.Dependencies)
+                        {
+                            using (fileGenerator.Declare("dependencyName", resolvedDependency.ProjectName))
+                            {
+                                //fileGenerator.Write(Template.Solution.ProjectRuleDependency);
+                            }
+                        }
+                        //fileGenerator.Write(Template.Solution.ProjectRuleEnd);
+                    }
                 }
-            }
-            //fileGenerator.WriteVerbatim(Template.Solution.HelpRuleTargetsBegin);
-            foreach (Solution.ResolvedProject resolvedProject in solutionProjects)
-            {
-                using (fileGenerator.Declare("projectName", resolvedProject.ProjectName))
+
+                // Clean rule
+                //fileGenerator.WriteVerbatim(Template.Solution.CleanRuleBegin);
+                foreach (Solution.ResolvedProject resolvedProject in solutionProjects)
                 {
-                    //fileGenerator.Write(Template.Solution.HelpRuleTarget);
+                    FileInfo projectFileInfo = new FileInfo(resolvedProject.ProjectFile);
+                    using (fileGenerator.Declare("projectFileDirectory", PathMakeUnix(Util.PathGetRelative(solutionFileInfo.DirectoryName, projectFileInfo.DirectoryName))))
+                    using (fileGenerator.Declare("projectFileName", projectFileInfo.Name))
+                    {
+                        //fileGenerator.Write(Template.Solution.CleanRuleProject);
+                    }
                 }
+                //fileGenerator.WriteVerbatim(Template.Solution.CleanRuleEnd);
+
+                // Help rule
+                //fileGenerator.WriteVerbatim(Template.Solution.HelpRuleBegin);
+                //foreach (Project.Configuration conf in solutionProjects.First().Configurations)
+                //{
+                //    // Optimizations enumeration rely on the fact that all projects share the same targets as the solution.
+                //    using (fileGenerator.Declare("optimization", conf.Target.GetOptimization().ToString().ToLower()))
+                //    {
+                //        //fileGenerator.Write(Template.Solution.HelpRuleConfiguration);
+                //    }
+                //}
+                //fileGenerator.WriteVerbatim(Template.Solution.HelpRuleTargetsBegin);
+                foreach (Solution.ResolvedProject resolvedProject in solutionProjects)
+                {
+                    using (fileGenerator.Declare("projectName", resolvedProject.ProjectName))
+                    {
+                        //fileGenerator.Write(Template.Solution.HelpRuleTarget);
+                    }
+                }
+                //fileGenerator.WriteVerbatim(Template.Solution.HelpRuleEnd);
+
+                // Write the solution file
+                if (builder.Context.WriteGeneratedFile(solution.GetType(), solutionFileInfo, fileGenerator.ToMemoryStream()))
+                {
+                    generatedFiles.Add(solutionFileInfo.FullName);
+                }
+                else
+                {
+                    skipFiles.Add(solutionFileInfo.FullName);
+                }
+
+                solution.PostGenerationCallback?.Invoke(solutionPath, Path.Combine(solutionFileInfo.DirectoryName, Path.GetFileNameWithoutExtension(solutionFileInfo.Name)), BuildFileExtension);
             }
-            //fileGenerator.WriteVerbatim(Template.Solution.HelpRuleEnd);
-
-            // Write the solution file
-            updated = builder.Context.WriteGeneratedFile(solution.GetType(), solutionFileInfo, fileGenerator.ToMemoryStream());
-
-            solution.PostGenerationCallback?.Invoke(solutionPath, solutionFile, BuildFileExtension);
-
-            return solutionFileInfo.FullName;
         }
 
         /// <summary>
@@ -219,100 +230,84 @@ namespace Sharpmake.Generators.Generic
             List<string> generatedFiles,
             List<string> skipFiles)
         {
-            var projectFileInfo = new FileInfo(Util.GetCapitalizedPath(projectFile + BuildFileExtension));
+            ValidateProjectConfigurations(project, configurations);
 
-            ValidateProjectConfigurations(project, configurations, projectFileInfo);
-
-            bool updated;
-            string projectFileResult = GenerateProject(builder, project, configurations, projectFileInfo, out updated);
-            if (updated)
-                generatedFiles.Add(projectFileResult);
-            else
-                skipFiles.Add(projectFileResult);
+            GenerateProject(builder, project, configurations, projectFile, generatedFiles, skipFiles);
         }
 
-        private string GenerateProject(
+        private void GenerateProject(
             Builder builder,
             Project project,
-            List<Project.Configuration> unsortedConfigurations,
-            FileInfo projectFileInfo,
-            out bool updated)
+            List<Project.Configuration> configurations,
+            string projectFile,
+            List<string> generatedFiles,
+            List<string> skipFiles)
         {
-            // Need to sort by name and platform
-            List<Project.Configuration> configurations = new List<Project.Configuration>();
-            configurations.AddRange(unsortedConfigurations.OrderBy(conf => conf.Name + conf.Platform));
+            string projectDir = Path.GetDirectoryName(projectFile);
 
             // Build source files list.
-            List<ProjectFile> sourceFiles = GetSourceFiles(project, configurations, projectFileInfo);
+            List<ProjectFile> sourceFiles = GetSourceFiles(project, configurations, projectDir);
 
-            // Generate options.
-            Dictionary<Project.Configuration, Options.ExplicitOptions> options = new Dictionary<Project.Configuration, Options.ExplicitOptions>();
+            // Generate .ninja files per configuration
             foreach (Project.Configuration conf in configurations)
             {
-                Options.ExplicitOptions option = GenerateOptions(conf, projectFileInfo);
-                options.Add(conf, option);
-            }
+                Options.ExplicitOptions options = GenerateOptions(conf, projectDir);
 
-            var fileGenerator = new FileGenerator();
-            {
-                //fileGenerator.Write(Template.Project.Header);
-
-                // Configurations variables.
-                foreach (Project.Configuration conf in configurations)
+                var fileGenerator = new FileGenerator();
                 {
+                    fileGenerator.Write(Template.Project.Header);
+
+                    // Configurations variables.
                     using (fileGenerator.Declare("name", conf.Name.ToLower()))
-                    using (fileGenerator.Declare("options", options[conf]))
+                    using (fileGenerator.Declare("options", options))
                     {
-                        //fileGenerator.Write(Template.Project.ProjectConfigurationVariables);
+                        fileGenerator.Write(Template.Project.ProjectConfigurationVariables);
                     }
-                }
 
-                // Objects variables
-                foreach (Project.Configuration conf in configurations)
-                {
-                    using (fileGenerator.Declare("name", conf.Name.ToLower()))
+                    // General rules
+                    using (fileGenerator.Declare("projectName", project.Name))
                     {
-                        //fileGenerator.Write(Template.Project.ObjectsVariableBegin);
-                        foreach (ProjectFile file in sourceFiles)
+                        fileGenerator.Write(Template.Project.ProjectRulesGeneral);
+                    }
+
+                    // Source file rules
+                    // Since we write excluded source files commented. Here we write rules for all files
+                    // in case one of the commented out object file is manually uncomment.
+                    foreach (ProjectFile file in GetSourceFiles(project, configurations, projectDir))
+                    {
+                        using (fileGenerator.Declare("objectFile", file.FileNameWithoutExtension + ObjectExtension))
+                        using (fileGenerator.Declare("sourceFile", PathMakeUnix(file.FileNameProjectRelative)))
                         {
-                            // Excluded source files are written to the makefile but are commented out.
-                            // This support the use case where you have a huge unit tests suite that take too long to compile.
-                            // In this case, you just exclude all unit tests from the build and manually uncomment only the unit tests you want to build.
-                            using (fileGenerator.Declare("excludeChar", conf.ResolvedSourceFilesBuildExclude.Contains(file.FileName) ? "#" : ""))
-                            using (fileGenerator.Declare("objectFile", file.FileNameWithoutExtension + ObjectExtension))
-                            {
-                                //fileGenerator.Write(Template.Project.ObjectsVariableElement);
-                            }
+                            fileGenerator.Write(Template.Project.ObjectRule);
                         }
-                        //fileGenerator.Write(Template.Project.ObjectsVariableEnd);
                     }
-                }
 
-                // General rules
-                using (fileGenerator.Declare("projectName", project.Name))
-                {
-                    //fileGenerator.Write(Template.Project.ProjectRulesGeneral);
-                }
-
-                // Source file rules
-                // Since we write excluded source files commented. Here we write rules for all files
-                // in case one of the commented out object file is manually uncomment.
-                foreach (ProjectFile file in GetSourceFiles(project, configurations, projectFileInfo))
-                {
-                    using (fileGenerator.Declare("objectFile", file.FileNameWithoutExtension + ObjectExtension))
-                    using (fileGenerator.Declare("sourceFile", PathMakeUnix(file.FileNameProjectRelative)))
+                    // Link target
+                    List<string> objectFiles = new List<string>();
+                    foreach (ProjectFile file in sourceFiles)
                     {
-                        //fileGenerator.Write(Template.Project.ObjectRule);
+                        if (!conf.ResolvedSourceFilesBuildExclude.Contains(file.FileName))
+                        {
+                            objectFiles.Add("$objdir/" + file.FileNameWithoutExtension + ObjectExtension);
+                        }
+                    }
+                    using (fileGenerator.Declare("objectFiles", string.Join(" ", objectFiles)))
+                    {
+                        fileGenerator.Write(Template.Project.LinkTarget);
+                    }
+
+                    // Write the project file
+                    FileInfo projectFileInfo = new FileInfo(projectFile + Util.GetProjectFileExtension(conf));
+                    if (builder.Context.WriteGeneratedFile(project.GetType(), projectFileInfo, fileGenerator.ToMemoryStream()))
+                    {
+                        generatedFiles.Add(projectFileInfo.FullName);
+                    }
+                    else
+                    {
+                        skipFiles.Add(projectFileInfo.FullName);
                     }
                 }
-
-                //fileGenerator.Write(Template.Project.Footer);
-
-                // Write the project file
-                updated = builder.Context.WriteGeneratedFile(project.GetType(), projectFileInfo, fileGenerator.ToMemoryStream());
             }
-
-            return projectFileInfo.FullName;
         }
 
         /// <summary>
@@ -321,8 +316,7 @@ namespace Sharpmake.Generators.Generic
         /// <exception cref="Error">The project contains an invalid configuration.</exception>
         private void ValidateProjectConfigurations(
             Project project,
-            List<Project.Configuration> configurations,
-            FileInfo projectFileInfo)
+            List<Project.Configuration> configurations)
         {
             Dictionary<string, Project.Configuration> configurationNameMapping = new Dictionary<string, Project.Configuration>();
             string projectName = null;
@@ -333,7 +327,7 @@ namespace Sharpmake.Generators.Generic
                 if (projectName == null)
                     projectName = conf.ProjectName;
                 else if (projectName != conf.ProjectName)
-                    throw new Error("Project configurations in the same project files must be the same: {0} != {1} in {2}", projectName, conf.ProjectName, projectFileInfo.Name);
+                    throw new Error("Project configurations in the same project files must be the same: {0} != {1}", projectName, conf.ProjectName);
 
 
                 // Validate that 2 conf name in the same project and for a given platform don't have the same name.
@@ -342,8 +336,8 @@ namespace Sharpmake.Generators.Generic
                 if (configurationNameMapping.TryGetValue(projectUniqueName, out otherConf))
                 {
                     throw new Error(
-                        "Project {0} ({4} in {5}) have 2 configurations with the same name: \"{1}\" for {2} and {3}",
-                        project.Name, conf.Name, otherConf.Target, conf.Target, projectFileInfo.Name, projectFileInfo.DirectoryName);
+                        "Project {0} have 2 configurations with the same name: \"{1}\" for {2} and {3}",
+                        project.Name, conf.Name, otherConf.Target, conf.Target);
                 }
 
                 configurationNameMapping[projectUniqueName] = conf;
@@ -360,7 +354,7 @@ namespace Sharpmake.Generators.Generic
             }
         }
 
-        private Options.ExplicitOptions GenerateOptions(Project.Configuration conf, FileInfo projectFileInfo)
+        private Options.ExplicitOptions GenerateOptions(Project.Configuration conf, string projectDir)
         {
             Options.ExplicitOptions options = new Options.ExplicitOptions();
 
@@ -371,10 +365,10 @@ namespace Sharpmake.Generators.Generic
                 );
 
             // IntermediateDirectory
-            options["IntermediateDirectory"] = PathMakeUnix(Util.PathGetRelative(projectFileInfo.DirectoryName, conf.IntermediatePath));
+            options["IntermediateDirectory"] = PathMakeUnix(Util.PathGetRelative(projectDir, conf.IntermediatePath));
 
             // OutputDirectory
-            options["OutputDirectory"] = PathMakeUnix(GetOutputDirectory(conf, projectFileInfo));
+            options["OutputDirectory"] = PathMakeUnix(GetOutputDirectory(conf, projectDir));
 
             #region Compiler
 
@@ -386,9 +380,9 @@ namespace Sharpmake.Generators.Generic
 
             // Includes
             OrderableStrings includePaths = new OrderableStrings();
-            includePaths.AddRange(Util.PathGetRelative(projectFileInfo.DirectoryName, conf.IncludePrivatePaths));
-            includePaths.AddRange(Util.PathGetRelative(projectFileInfo.DirectoryName, conf.IncludePaths));
-            includePaths.AddRange(Util.PathGetRelative(projectFileInfo.DirectoryName, conf.DependenciesIncludePaths));
+            includePaths.AddRange(Util.PathGetRelative(projectDir, conf.IncludePrivatePaths));
+            includePaths.AddRange(Util.PathGetRelative(projectDir, conf.IncludePaths));
+            includePaths.AddRange(Util.PathGetRelative(projectDir, conf.DependenciesIncludePaths));
             PathMakeUnix(includePaths);
             includePaths.InsertPrefix("-I");
             options["Includes"] = includePaths.JoinStrings(" ");
@@ -473,7 +467,7 @@ namespace Sharpmake.Generators.Generic
             options["OutputFile"] = FormatOutputFileName(conf);
 
             // DependenciesLibraryFiles
-            OrderableStrings dependenciesLibraryFiles = GetDependenciesOutputFilesProjectRelative(conf, projectFileInfo);
+            OrderableStrings dependenciesLibraryFiles = GetDependenciesOutputFilesProjectRelative(conf, projectDir);
             PathMakeUnix(dependenciesLibraryFiles);
             options["DependenciesLibraryFiles"] = dependenciesLibraryFiles.JoinStrings(" ");
 
@@ -485,7 +479,7 @@ namespace Sharpmake.Generators.Generic
 
             // LibraryPaths
             OrderableStrings libraryPaths = new OrderableStrings();
-            libraryPaths.AddRange(Util.PathGetRelative(projectFileInfo.DirectoryName, conf.LibraryPaths));
+            libraryPaths.AddRange(Util.PathGetRelative(projectDir, conf.LibraryPaths));
             PathMakeUnix(libraryPaths);
             libraryPaths.InsertPrefix("-L");
             options["LibraryPaths"] = libraryPaths.JoinStrings(" ");
@@ -493,11 +487,11 @@ namespace Sharpmake.Generators.Generic
             // LinkCommand
             if (conf.Output == Project.Configuration.OutputType.Lib)
             {
-                //options["LinkCommand"] = Template.Project.LinkCommandLib;
+                options["LinkCommand"] = Template.Project.LinkCommandLib;
             }
             else
             {
-                //options["LinkCommand"] = Template.Project.LinkCommandExe;
+                options["LinkCommand"] = Template.Project.LinkCommandExe;
             }
 
             #endregion
@@ -508,7 +502,7 @@ namespace Sharpmake.Generators.Generic
         private List<ProjectFile> GetSourceFiles(
             Project project,
             List<Project.Configuration> configurations,
-            FileInfo projectFileInfo)
+            string projectDir)
         {
             Strings projectSourceFiles = project.GetSourceFilesForConfigurations(configurations);
 
@@ -518,7 +512,7 @@ namespace Sharpmake.Generators.Generic
 
             foreach (string file in projectSourceFiles)
             {
-                ProjectFile projectFile = new ProjectFile(file, projectFileInfo.DirectoryName, Util.GetCapitalizedPath(project.SourceRootPath));
+                ProjectFile projectFile = new ProjectFile(file, projectDir, Util.GetCapitalizedPath(project.SourceRootPath));
                 allFiles.Add(projectFile);
             }
 
@@ -541,13 +535,13 @@ namespace Sharpmake.Generators.Generic
             return sourceFiles;
         }
 
-        private OrderableStrings GetDependenciesOutputFilesProjectRelative(Project.Configuration conf, FileInfo projectFileInfo)
+        private OrderableStrings GetDependenciesOutputFilesProjectRelative(Project.Configuration conf, string projectDir)
         {
             // Build list of dependencies output files relative to project file.
             OrderableStrings dependencyFiles = new OrderableStrings();
             foreach (Project.Configuration dependencyConf in conf.ResolvedDependencies)
             {
-                var outputFileProjectRelative = Path.Combine(GetOutputDirectory(dependencyConf, projectFileInfo), FormatOutputFileName(dependencyConf));
+                var outputFileProjectRelative = Path.Combine(GetOutputDirectory(dependencyConf, projectDir), FormatOutputFileName(dependencyConf));
                 dependencyFiles.Add(outputFileProjectRelative, dependencyConf.TargetFileOrderNumber);
             }
             dependencyFiles.Sort();
@@ -555,12 +549,12 @@ namespace Sharpmake.Generators.Generic
             return dependencyFiles;
         }
 
-        private string GetOutputDirectory(Project.Configuration conf, FileInfo projectFileInfo)
+        private string GetOutputDirectory(Project.Configuration conf, string projectDir)
         {
             if (conf.Output == Project.Configuration.OutputType.Lib)
-                return Util.PathGetRelative(projectFileInfo.DirectoryName, conf.TargetLibraryPath);
+                return Util.PathGetRelative(projectDir, conf.TargetLibraryPath);
             else
-                return Util.PathGetRelative(projectFileInfo.DirectoryName, conf.TargetPath);
+                return Util.PathGetRelative(projectDir, conf.TargetPath);
         }
 
         private static string FormatOutputFileName(Project.Configuration conf)

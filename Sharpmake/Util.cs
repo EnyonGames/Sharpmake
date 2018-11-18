@@ -1580,7 +1580,7 @@ namespace Sharpmake
                         return ".make";
 
                     case DevEnv.ninja:
-                        return ".ninja";
+                        return string.Format("_{0}.ninja", conf.Name.ToLower());
 
                     default:
                         throw new NotImplementedException("GetProjectFileExtension called with unknown DevEnv: " + conf.Target.GetFragment<DevEnv>());
